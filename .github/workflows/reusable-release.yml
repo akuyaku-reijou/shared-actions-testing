@@ -1,0 +1,187 @@
+name: Reusable Release (CANNOT BE USED DIRECTLY)
+
+on:
+  workflow_call:
+    inputs:
+      release_type:
+        required: true
+        type: string
+        default: "patch"
+      custom_version:
+        required: false
+        type: string
+        default: ""
+    secrets:
+      NODE_AUTH_TOKEN:
+        required: true
+
+env:
+  AUTHOR_BOT_NAME: Bot GitHub Actions
+  AUTHOR_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
+
+jobs:
+  check-permissions:
+    name: Check user and branch authorization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if user and branch are authorized
+        id: permission-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT_USER="${{ github.actor }}"
+          CURRENT_BRANCH="${{ github.ref_name }}"
+
+          # List of specific authorized users (GitHub usernames)
+          AUTHORIZED_USERS=("admin-user")
+
+          # List of authorized branches
+          AUTHORIZED_BRANCHES=("ga_release")
+
+          echo "=== DEBUG INFO ==="
+          echo "Current user: $CURRENT_USER"
+          echo "Current branch: $CURRENT_BRANCH"
+          echo "Authorized users: ${AUTHORIZED_USERS[*]}"
+          echo "Authorized branches: ${AUTHORIZED_BRANCHES[*]}"
+          echo "=================="
+
+          # Check if user is repository admin (improved version)
+          echo "Checking if user is repository admin..."
+          IS_ADMIN=false
+
+          # Use curl instead of gh for better reliability
+          if RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/collaborators/$CURRENT_USER/permission"); then
+            PERMISSION=$(echo "$RESPONSE" | jq -r '.permission // "none"')
+            echo "ℹ️ User '$CURRENT_USER' permission: $PERMISSION"
+            if [[ "$PERMISSION" == "admin" ]]; then
+              IS_ADMIN=true
+              echo "✅ User '$CURRENT_USER' has admin permission"
+            fi
+          else
+            echo "⚠️ Could not check admin status via API, checking only authorized users list"
+          fi
+
+          # Check if user is in specific authorized list
+          USER_IN_LIST=false
+          for user in "${AUTHORIZED_USERS[@]}"; do
+            if [[ "$CURRENT_USER" == "$user" ]]; then
+              USER_IN_LIST=true
+              echo "✅ User '$CURRENT_USER' found in authorized users list"
+              break
+            fi
+          done
+
+          # User is authorized if admin OR in the list
+          USER_AUTHORIZED=false
+          if [[ "$IS_ADMIN" == "true" ]] || [[ "$USER_IN_LIST" == "true" ]]; then
+            USER_AUTHORIZED=true
+          fi
+
+          # Check authorized branch (correct version)
+          BRANCH_AUTHORIZED=false
+          for branch in "${AUTHORIZED_BRANCHES[@]}"; do
+            if [[ "$CURRENT_BRANCH" == "$branch" ]]; then
+              BRANCH_AUTHORIZED=true
+              echo "✅ Branch '$CURRENT_BRANCH' matches exactly: $branch"
+              break
+            elif [[ "$branch" == *"/*" ]]; then
+              # Handle patterns like release/* or hotfix/*
+              pattern=${branch%/*}
+              if [[ "$CURRENT_BRANCH" == "$pattern"* ]]; then
+                BRANCH_AUTHORIZED=true
+                echo "✅ Branch '$CURRENT_BRANCH' matches pattern: $branch"
+                break
+              fi
+            fi
+          done
+
+          # Verify permissions with detailed output
+          if [ "$USER_AUTHORIZED" = false ]; then
+            echo "❌ User '$CURRENT_USER' is not authorized to run this workflow"
+            echo "✅ Authorized users: ${AUTHORIZED_USERS[*]} (or repository admins)"
+            echo "ℹ️ Admin check result: IS_ADMIN=$IS_ADMIN, USER_IN_LIST=$USER_IN_LIST"
+            exit 1
+          fi
+
+          if [ "$BRANCH_AUTHORIZED" = false ]; then
+            echo "❌ Branch '$CURRENT_BRANCH' is not authorized for release"
+            echo "✅ Authorized branches: ${AUTHORIZED_BRANCHES[*]}"
+            exit 1
+          fi
+
+          echo "✅ User '$CURRENT_USER' is authorized (Admin: $IS_ADMIN, In list: $USER_IN_LIST)"
+          echo "✅ Branch '$CURRENT_BRANCH' is authorized"
+
+  validate-inputs:
+    name: Validate inputs
+    needs: check-permissions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate custom version input
+        id: validation
+        run: |
+          RELEASE_TYPE="${{ inputs.release_type }}"
+          CUSTOM_VERSION="${{ inputs.custom_version }}"
+
+          echo "Release type: $RELEASE_TYPE"
+          echo "Custom version: $CUSTOM_VERSION"
+
+          # Check if custom version is required but not provided
+          if [[ "$RELEASE_TYPE" == "custom" ]]; then
+            if [[ -z "$CUSTOM_VERSION" || "$CUSTOM_VERSION" == "" ]]; then
+              echo "❌ Custom version is required when release type is 'custom'"
+              echo "Please provide a custom version (e.g., 1.2.3, 2.0.0-beta.1)"
+              exit 1
+            else
+              echo "✅ Custom version provided: $CUSTOM_VERSION"
+            fi
+          else
+            echo "✅ Using incremental release type: $RELEASE_TYPE"
+          fi
+
+  build:
+    name: Public new version
+    runs-on: ubuntu-latest
+    needs: validate-inputs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # Fetch full history for changelog generation
+
+      - name: Setup Git identity
+        run: |
+          git config --global user.name "${{ env.AUTHOR_BOT_NAME }}"
+          git config --global user.email "${{ env.AUTHOR_BOT_EMAIL }}"
+          echo "✅ Git identity configured:"
+          echo "Name: $(git config user.name)"
+          echo "Email: $(git config user.email)"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Release new version - incremental
+        if: ${{ inputs.release_type != 'custom' }}
+        run: RELEASE_TYPE="${{ inputs.release_type }}" pnpm release:cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release new version - custom
+        if: ${{ inputs.release_type == 'custom' && inputs.custom_version != '' }}
+        run: RELEASE_TYPE="${{ inputs.custom_version }}" pnpm release:cli-custom
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
