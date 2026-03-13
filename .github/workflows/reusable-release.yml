@@ -15,6 +15,9 @@ on:
       NODE_AUTH_TOKEN:
         required: true
 
+permissions:
+  contents: write
+
 env:
   AUTHOR_BOT_NAME: Bot GitHub Actions
   AUTHOR_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
