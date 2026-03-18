@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         default: "patch"
+      release_branch:
+        required: true
+        type: string
+        default: ""
       custom_version:
         required: false
         type: string
@@ -39,7 +43,7 @@ jobs:
           AUTHORIZED_USERS=("admin-user")
 
           # List of authorized branches
-          AUTHORIZED_BRANCHES=("ga_release")
+          AUTHORIZED_BRANCHES=("${{ inputs.release_branch }}")
 
           echo "=== DEBUG INFO ==="
           echo "Current user: $CURRENT_USER"
