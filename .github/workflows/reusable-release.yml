@@ -15,8 +15,14 @@ on:
         required: false
         type: string
         default: ""
+      APP_ID:
+        required: true
+        type: string
+        default: ""
     secrets:
       NODE_AUTH_TOKEN:
+        required: true
+      APP_PRIVATE_KEY:
         required: true
 
 permissions:
@@ -162,7 +168,7 @@ jobs:
         id: generate-token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ vars.APP_ID }}
+          app-id: ${{ inputs.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Setup Git identity
