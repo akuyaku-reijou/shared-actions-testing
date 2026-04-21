@@ -175,7 +175,6 @@ jobs:
         run: |
           git config --global user.name "${{ env.AUTHOR_BOT_NAME }}"
           git config --global user.email "${{ env.AUTHOR_BOT_EMAIL }}"
-          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}.git
           echo "✅ Git identity configured:"
           echo "Name: $(git config user.name)"
           echo "Email: $(git config user.email)"
@@ -195,14 +194,18 @@ jobs:
 
       - name: Release new version - incremental
         if: ${{ inputs.release_type != 'custom' }}
-        run: RELEASE_TYPE="${{ inputs.release_type }}" pnpm release:cli
+        run: |
+          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}.git
+          RELEASE_TYPE="${{ inputs.release_type }}" pnpm release:cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release new version - custom
         if: ${{ inputs.release_type == 'custom' && inputs.custom_version != '' }}
-        run: RELEASE_TYPE="${{ inputs.custom_version }}" pnpm release:cli-custom
+        run: |
+          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}.git
+          RELEASE_TYPE="${{ inputs.custom_version }}" pnpm release:cli-custom
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
