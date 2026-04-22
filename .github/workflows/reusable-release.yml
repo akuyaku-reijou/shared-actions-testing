@@ -158,12 +158,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate-inputs
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0 # Fetch full history for changelog generation
-
       - name: Generate a token
         id: generate-token
         uses: actions/create-github-app-token@v2
@@ -171,11 +165,17 @@ jobs:
           app-id: ${{ inputs.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          fetch-depth: 0 # Fetch full history for changelog generation
+
+
       - name: Setup Git identity
         run: |
           git config --global user.name "${{ env.AUTHOR_BOT_NAME }}"
           git config --global user.email "${{ env.AUTHOR_BOT_EMAIL }}"
-          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}.git
           echo "✅ Git identity configured:"
           echo "Name: $(git config user.name)"
           echo "Email: $(git config user.email)"
