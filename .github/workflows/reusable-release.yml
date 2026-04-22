@@ -28,10 +28,6 @@ on:
 permissions:
   contents: write
 
-env:
-  AUTHOR_BOT_NAME: Bot GitHub Actions
-  AUTHOR_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
-
 jobs:
   check-permissions:
     name: Check user and branch authorization
@@ -160,22 +156,27 @@ jobs:
     steps:
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ inputs.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: Get GitHub App User ID
+        id: get-user-id
+        run: echo "user-id=$(gh api "/users/${{ steps.generate-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ steps.generate-token.outputs.token }}
           fetch-depth: 0 # Fetch full history for changelog generation
 
-
       - name: Setup Git identity
         run: |
-          git config --global user.name "${{ env.AUTHOR_BOT_NAME }}"
-          git config --global user.email "${{ env.AUTHOR_BOT_EMAIL }}"
+          git config --global user.name '${{ steps.generate-token.outputs.app-slug }}[bot]'
+          git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.generate-token.outputs.app-slug }}[bot]@users.noreply.github.com'
           echo "✅ Git identity configured:"
           echo "Name: $(git config user.name)"
           echo "Email: $(git config user.email)"
