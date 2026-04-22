@@ -175,6 +175,7 @@ jobs:
         run: |
           git config --global user.name "${{ env.AUTHOR_BOT_NAME }}"
           git config --global user.email "${{ env.AUTHOR_BOT_EMAIL }}"
+          git remote set-url origin https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/${{ github.repository }}.git
           echo "✅ Git identity configured:"
           echo "Name: $(git config user.name)"
           echo "Email: $(git config user.email)"
