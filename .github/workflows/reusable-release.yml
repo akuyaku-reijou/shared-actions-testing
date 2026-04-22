@@ -199,11 +199,11 @@ jobs:
         run: RELEASE_TYPE="${{ inputs.release_type }}" pnpm release:cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Release new version - custom
         if: ${{ inputs.release_type == 'custom' && inputs.custom_version != '' }}
         run: RELEASE_TYPE="${{ inputs.custom_version }}" pnpm release:cli-custom
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
