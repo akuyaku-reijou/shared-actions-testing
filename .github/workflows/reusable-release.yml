@@ -3,11 +3,15 @@ name: Reusable Release (CANNOT BE USED DIRECTLY)
 on:
   workflow_call:
     inputs:
+      APP_ID:
+        required: true
+        type: string
+        default: ""
       release_type:
         required: true
         type: string
         default: "patch"
-      release_branch:
+      unauthorized_branch:
         required: true
         type: string
         default: ""
@@ -15,14 +19,10 @@ on:
         required: false
         type: string
         default: ""
-      APP_ID:
-        required: true
-        type: string
-        default: ""
     secrets:
-      NODE_AUTH_TOKEN:
-        required: true
       APP_PRIVATE_KEY:
+        required: true
+      NODE_AUTH_TOKEN:
         required: true
 
 permissions:
@@ -45,7 +45,7 @@ jobs:
           AUTHORIZED_USERS=("admin-user")
 
           # List of authorized branches
-          AUTHORIZED_BRANCHES=("${{ inputs.release_branch }}")
+          UNAUTHORIZED_BRANCHES=("${{ inputs.unauthorized_branch }}")
 
           echo "=== DEBUG INFO ==="
           echo "Current user: $CURRENT_USER"
@@ -88,20 +88,12 @@ jobs:
           fi
 
           # Check authorized branch (correct version)
-          BRANCH_AUTHORIZED=false
-          for branch in "${AUTHORIZED_BRANCHES[@]}"; do
+          BRANCH_AUTHORIZED=true
+          for branch in "${UNAUTHORIZED_BRANCHES[@]}"; do
             if [[ "$CURRENT_BRANCH" == "$branch" ]]; then
-              BRANCH_AUTHORIZED=true
+              BRANCH_AUTHORIZED=false
               echo "✅ Branch '$CURRENT_BRANCH' matches exactly: $branch"
               break
-            elif [[ "$branch" == *"/*" ]]; then
-              # Handle patterns like release/* or hotfix/*
-              pattern=${branch%/*}
-              if [[ "$CURRENT_BRANCH" == "$pattern"* ]]; then
-                BRANCH_AUTHORIZED=true
-                echo "✅ Branch '$CURRENT_BRANCH' matches pattern: $branch"
-                break
-              fi
             fi
           done
 
