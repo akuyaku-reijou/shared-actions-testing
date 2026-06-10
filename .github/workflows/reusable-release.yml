@@ -62,6 +62,7 @@ jobs:
           if RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/collaborators/$CURRENT_USER/permission"); then
             PERMISSION=$(echo "$RESPONSE" | jq -r '.role_name // "none"')
+            echo "$RESPONSE" | jq .
             echo "ℹ️ User '$CURRENT_USER' permission: $PERMISSION"
             if [[ "$PERMISSION" == "admin" || "$PERMISSION" == "maintain" ]]; then
               HAS_PERMISSION=true
