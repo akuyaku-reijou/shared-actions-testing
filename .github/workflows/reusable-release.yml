@@ -154,6 +154,16 @@ jobs:
           app-id: ${{ inputs.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: Debug generated token auth
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          echo "Token length: ${#GH_TOKEN}"
+          gh auth status
+          gh api repos/${{ github.repository }} --jq '.full_name'
+          gh api repos/${{ github.repository }}/releases --method GET --jq 'length'
+
+
       - name: Get GitHub App User ID
         id: get-user-id
         run: echo "user-id=$(gh api "/users/${{ steps.generate-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
