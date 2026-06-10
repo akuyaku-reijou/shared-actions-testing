@@ -56,16 +56,16 @@ jobs:
 
           # Check if user is repository admin (improved version)
           echo "Checking if user is repository admin..."
-          IS_ADMIN=false
+          HAS_PERMISSION=false
 
           # Use curl instead of gh for better reliability
           if RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/collaborators/$CURRENT_USER/permission"); then
-            PERMISSION=$(echo "$RESPONSE" | jq -r '.permission // "none"')
+            PERMISSION=$(echo "$RESPONSE" | jq -r '.role_name // "none"')
             echo "ℹ️ User '$CURRENT_USER' permission: $PERMISSION"
-            if [[ "$PERMISSION" == "admin" ]]; then
-              IS_ADMIN=true
-              echo "✅ User '$CURRENT_USER' has admin permission"
+            if [[ "$PERMISSION" == "admin" || "$PERMISSION" == "maintain" ]]; then
+              HAS_PERMISSION=true
+              echo "✅ User '$CURRENT_USER' has admin/maintain permission"
             fi
           else
             echo "⚠️ Could not check admin status via API, checking only authorized users list"
@@ -83,7 +83,7 @@ jobs:
 
           # User is authorized if admin OR in the list
           USER_AUTHORIZED=false
-          if [[ "$IS_ADMIN" == "true" ]] || [[ "$USER_IN_LIST" == "true" ]]; then
+          if [[ "$HAS_PERMISSION" == "true" ]] || [[ "$USER_IN_LIST" == "true" ]]; then
             USER_AUTHORIZED=true
           fi
 
@@ -100,8 +100,8 @@ jobs:
           # Verify permissions with detailed output
           if [ "$USER_AUTHORIZED" = false ]; then
             echo "❌ User '$CURRENT_USER' is not authorized to run this workflow"
-            echo "✅ Authorized users: ${AUTHORIZED_USERS[*]} (or repository admins)"
-            echo "ℹ️ Admin check result: IS_ADMIN=$IS_ADMIN, USER_IN_LIST=$USER_IN_LIST"
+            echo "✅ Authorized users: ${AUTHORIZED_USERS[*]} (or repository admins/maintainers)"
+            echo "ℹ️ Admin check result: HAS_PERMISSION=$HAS_PERMISSION (user permission=$PERMISSION), USER_IN_LIST=$USER_IN_LIST"
             exit 1
           fi
 
@@ -111,7 +111,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ User '$CURRENT_USER' is authorized (Admin: $IS_ADMIN, In list: $USER_IN_LIST)"
+          echo "✅ User '$CURRENT_USER' is authorized (HasPermission: $HAS_PERMISSION, In list: $USER_IN_LIST)"
           echo "✅ Branch '$CURRENT_BRANCH' is authorized"
 
   validate-inputs:
