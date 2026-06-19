@@ -19,6 +19,16 @@ on:
         required: false
         type: string
         default: ""
+      node_version:
+        required: false
+        type: string
+        default: "24"
+      pnpm_version:
+        required: false
+        type: string
+        default: "11"
+
+
     secrets:
       APP_PRIVATE_KEY:
         required: true
@@ -93,7 +103,7 @@ jobs:
           for branch in "${UNAUTHORIZED_BRANCHES[@]}"; do
             if [[ "$CURRENT_BRANCH" == "$branch" ]]; then
               BRANCH_AUTHORIZED=false
-              echo "✅ Branch '$CURRENT_BRANCH' matches exactly: $branch"
+              echo "❌ Branch '$CURRENT_BRANCH' matches exactly: $branch"
               break
             fi
           done
@@ -187,12 +197,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 10
+          version: ${{ inputs.pnpm_version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ inputs.node_version }}
 
       - name: Install Dependencies
         run: pnpm install
